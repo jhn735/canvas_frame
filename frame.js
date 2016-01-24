@@ -55,6 +55,10 @@ function canvas_frame(parent_frame, width, height, percent){
 	this.font_style = {color:"white", font:"20px Arial"};
 	
 	this.frame_children = [];
+	
+	/** Adds the given child to the list of children. if the child is drawable, give it frame.
+	 * @param child the child frame/drawable_object to be added to the list of children.
+	**/
 	this.add_child = function(child){
 		if(typeof child === "HTMLImageElement"){ 
 			var global_coords = that.convert_coords(that.coords.x, that.coords.y);
@@ -66,9 +70,7 @@ function canvas_frame(parent_frame, width, height, percent){
 		}else if(typeof child === typeof that){ return that.frame_children.push(child);}
 	}
 
-	// This function clears and redraws whatever falls within this frame. 
-	//	if this frame has no children a.k.a. is a drawable object
-	//		draw that element otherwise have all of you're children refresh
+	/** This function clears and redraws whatever falls within this frame if displayed. **/
 	this.refresh = function(){
 		that.clear();
 		that.draw(that.background);
@@ -78,25 +80,24 @@ function canvas_frame(parent_frame, width, height, percent){
 		}
 	}	
 	
-	//This function clears the space to be the selected background
+	/** Clears the frame completely if displayed. **/
 	this.clear = function(){
 		var coords = that.convert_coords(that.coords.x, that.coords.y);
 		that.context.clearRect(that.coords.x, that.coords.y, that.width, that.height);
 	}
 
 	/** Sets the current image displayed as the background **/
-	this.set_background = function(obj){
-		if(typeof obj !== "undefined" ) {
-			that.clear();
-			that.draw(obj);}
+	this.set_background = function(){
 		var coords = that.convert_coords(that.coords.x, that.coords.y);
 		background = that.context.getImageData(coords.x, coords.y, that.width, that.height);
 	};
 	
-/* Draws either the given image at the given coordsinates or fills with the given
-	 color. If either x_coords or y_coords is undefined they are assumed to be 0.
-*/
-	this.draw = function(obj, x_coord, y_coord){
+	/** Draws the object to the frame.
+	 * @param obj the object to be drawn. Can be image, color, image data or text.
+	 * @param x the x coordinate within the frame of the object. If not present assumed to be 0.
+	 * @param y the y coordinate within the frame of the object. If not present assumed to be 0.
+	**/
+	this.draw = function(obj, x, y){
 		//if the object isn't anything don't do anything
 		if(typeof obj === "undefined") return;
 		//check the types of the coordinates, if not numbers, set to 0
@@ -116,7 +117,13 @@ function canvas_frame(parent_frame, width, height, percent){
 		}
 	}
 
-/* Draws the image that either fills the frame or clips it*/
+	/** Draws the image that either fills the frame or clips it.
+	 * @param image an html Image Element that is to be drawn to the frame
+	 * @param x the x coordinate within the frame of the image
+	 * @param y the y coordinate within the frame of the image
+	 * @param mode the mode specified in text. if "fill" then stretch the image to\
+	 *	fill the frame. if "flat" then draw the image as is.
+	**/
 	this.draw_image = function(image, x, y, mode){
 		//check the types of the coordsinates, if not numbers, set to 0
 		if(typeof x_coords !== "number"){ x_coords = 0;}
@@ -138,11 +145,11 @@ function canvas_frame(parent_frame, width, height, percent){
 			}
 	}
 
-/** Draws the image data onto the frame 
-	* @param image_data an object of type image data that is to be drawn to the frame.
-	* @param x the x coordinate within the current frame of the image to be drawn.
-	* @param y the y coordinate within the current frame of the image to be drawn.
-**/
+	/** Draws the image data onto the frame 
+	 * @param image_data an object of type image data that is to be drawn to the frame.
+	 * @param x the x coordinate within the current frame of the image to be drawn.
+	 * @param y the y coordinate within the current frame of the image to be drawn.
+	**/
 	this.draw_image_data = function(image_data, x, y){
 		//check the types of the coordsinates, if not numbers, set to 0
 		if(typeof x_coords !== "number"){ x_coords = 0;}
@@ -154,15 +161,21 @@ function canvas_frame(parent_frame, width, height, percent){
 		
 	}
 
-/** Fills the frame with the given color 
-	
-**/
+	/** Fills the frame with the given color 
+	 * @param color the color specified in text with which to fill the frame
+	**/
 	this.fill_color = function(color){
 			that.context.fillStyle = color;
 			that.context.fillRect(that.coords.x, that.coords.y, that.width, that.height);	
 	}
 
-/* Draws the text with the given text style*/
+	/** Draws the text with the given text style
+	 * @param text the text to be drawn out.
+	 * @param x the x coordinate within the frame of the image.
+	 * @param y the y coordinate within the frame of the image.
+	 * @param font the font of the text, includes font size.
+	 * @param color the color of the text.
+	**/
 	this.draw_text = function(text, x, y, font, color){
 		//check the types of the coordsinates, if not numbers, set to 0
 		if(typeof x !== "number"){ x = 0;}
@@ -178,22 +191,9 @@ function canvas_frame(parent_frame, width, height, percent){
 		that.context.fillText(text, coords.x, coords.y); 
 	}
 
-  /** Converts the given coords from inside this frame into global coords.
-	 * @return an object containing x and y coordsinate
-	*/
-	this.convert_coords = function(x_coord, y_coord){
-		//convert the coordsinates into the parents coordsinate system.
-		x_coord = x_coord + that.coords.x;
-		y_coord = y_coord + that.coords.y;
-		//if the current parent is a canvas return the results
-		if(that.parent_frame instanceof HTMLCanvasElement){	
-			return { x:x_coord, y:y_coord};
-		} else { return that.parent_frame.convert_coords(x_coord, y_coord);}
-	}
-
 	/** Returns a set of dimensions with which an image will fit within all frames 
-		* @return an object containing x, y coords the width, height and the clipping dimensions
-	**/
+	 * @return an object containing x, y coords the width, height and the clipping dimensions
+	 **/
 	this.convert_dimensions = function(x, y, width, height, sx, sy, swidth, sheight){
 			//set up sx and sy
 			if(typeof sx !== "number" || typeof sy !== "number"){
