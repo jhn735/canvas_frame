@@ -1,5 +1,5 @@
 /*canvas frame will have either a parent frame or a canvas in which to exist. It 
-			has a height and width that is proportional to it's parent's with a 
+			has a height and width that is proportional to it's parent's width a 
 			location that falls within the bounds of it's parent. 
 		Coordinate 0,0 corresponds to the upper-leftmost coordsinate of the parent. 
 		Window cannot exist outside the bounds of it's parent, any portion that 
@@ -60,11 +60,14 @@ function canvas_frame(parent_frame, width, height, percent){
 	 * @param child the child frame/drawable_object to be added to the list of children.
 	**/
 	this.add_child = function(child){
-		if(typeof child === "HTMLImageElement"){ 
-			var global_coords = that.convert_coords(that.coords.x, that.coords.y);
+		//if the child is something 
+		if(typeof child !== "undefined"){
 			var n_wind = new canvas_frame(that, child.width, child.height, false);
+			//then try to draw it  
 			n_wind.draw(child);
+			//set the background of a new frame
 			n_wind.setBackground();
+		//return the frame
 		return that.frame_children.push(n_wind);
 		//if the child is a canvas_frame just add it to the list of children	
 		}else if(typeof child === typeof that){ return that.frame_children.push(child);}
@@ -82,14 +85,16 @@ function canvas_frame(parent_frame, width, height, percent){
 	
 	/** Clears the frame completely if displayed. **/
 	this.clear = function(){
-		var coords = that.convert_coords(that.coords.x, that.coords.y);
-		that.context.clearRect(that.coords.x, that.coords.y, that.width, that.height);
+		//get the dimensions of the displayable frame
+		var dim = that.convert_dimensions(that.coords.x, that.coords.y, that.width, that.height);
+		that.context.clearRect(dim.x, dim.y, dim.swidth, dim.sheight);
 	}
 
 	/** Sets the current image displayed as the background **/
 	this.set_background = function(){
-		var coords = that.convert_coords(that.coords.x, that.coords.y);
-		background = that.context.getImageData(coords.x, coords.y, that.width, that.height);
+		//get the dimensions of the displayable frame
+		var dim = that.convert_dimensions(that.coords.x, that.coords.y, that.width, that.height);
+		background = that.context.getImageData(dim.x, dim.y, dim.swidth, dim.sheight);
 	};
 	
 	/** Draws the object to the frame.
@@ -132,10 +137,6 @@ function canvas_frame(parent_frame, width, height, percent){
 			//change the dimensions if needed
 			var dim = that.convert_dimensions(x, y, image.width, image.height);	
 			
-			//set up x, y to hold the global coordsinates
-			var coords = that.convert_coords(dim.x, dim.y);
-				dim.x = coords.x; dim.y = coords.y;
-
 			if(/fill/.test(mode)){			
 				that.scratch_ctx.drawImage(image, 0, 0, that.width, that.height);
 				image = that.scratch_ctx.getImageData(0, 0, that.width, that.height);
@@ -157,8 +158,18 @@ function canvas_frame(parent_frame, width, height, percent){
 		if( !(image_data instanceof ImageData) ){return;}
 	
 		//change the dimensions if needed
-		var dim = that.convert_dimensions(x, y, image.width, image.height);	
-		
+		var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);
+
+		//if the dimensions have to be changed, then changed them	in image data.
+		if(dim.swidth != image_data.width || dim.sheight != image_data.height){
+			var temp_data = new ImageData(dim.swidth, dim.sheight);
+			var length = dim.swidth * dim.sheight * 4;
+			temp_data.data.set( image_data.data.subarray(0, length));
+		image_data = temp_data;
+		}
+
+	//finally put the image data in.
+	that.context.putImageData(image_data, dim.x, dim.y)			
 	}
 
 	/** Fills the frame with the given color 
@@ -166,7 +177,8 @@ function canvas_frame(parent_frame, width, height, percent){
 	**/
 	this.fill_color = function(color){
 			that.context.fillStyle = color;
-			that.context.fillRect(that.coords.x, that.coords.y, that.width, that.height);	
+			var dim = that.convert_dimensions(that.coords.x, that.coords.y, that.width, that.height);
+			that.context.fillRect(dim.x, dim.y, dim.width, dim.sheight);	
 	}
 
 	/** Draws the text with the given text style
@@ -182,7 +194,7 @@ function canvas_frame(parent_frame, width, height, percent){
 		if(typeof y !== "number"){ y = 0;}
 		//set the font_style if applicable
 		if(typeof font !== "undefined") {that.font_style.font = font;}
-		if(typeof color === "undefined") {that.font_style.color = color;}
+		if(typeof color !== "undefined") {that.font_style.color = color;}
 
 		var coords = that.convert_coords(x,y);
 
@@ -203,7 +215,7 @@ function canvas_frame(parent_frame, width, height, percent){
 
 			//set up swidth and sheight
 			if(typeof swidth !== "number" || typeof sheight !== "number"){
-				swidth = 0; sheight = 0;}
+				swidth = width; sheight = height;}
 			if( (x + width) > that.width){ 
 				swidth = that.width - x;}
 			if( (y + height) > that.height){ 
@@ -212,8 +224,11 @@ function canvas_frame(parent_frame, width, height, percent){
 		//convert the coordinates into that of the parent's
 		x = x + that.coords.x;
 		y = y + that.coords.y;
-
-		if(!(that.parent_frame instanceof HTMLCanvasElement) ){
+		
+		var parent_is_canvas = that.parent_frame instanceof HTMLCanvasElement;
+		var undrawable = swidth < 0 || sheight < 0 || sx > swidth || sy > sheight;
+	
+		if(!parent_is_canvas || !undrawable){
 			return that.parent_frame.convert_dimensions(x, y, width, height, sx, sy, swidth, sheight);}	
 				
 	return {x:x, y:y, width:width, height:height, sx:sx, sy:sy, swidth:swidth, sheight:sheight};
