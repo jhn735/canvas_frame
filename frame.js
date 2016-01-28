@@ -10,14 +10,14 @@ function canvas_frame(parent_frame, width, height, percent){
 
 	this.parent_frame = parent_frame;
 		if(typeof percent === "undefined" || percent === true){
-			this.height = this.parent_frame.height * (percent_height/100);	
-			this.width	= this.parent_frame.width  * (percent_width/100);
+			this.height = this.parent_frame.height * (height/100);	
+			this.width	= this.parent_frame.width  * (width/100);
 		}else{ this.height = height; this.width = width;}
 
 	//the coordsinates of this frame within it's parent
 	this.coords = {x:0, y:0};
 
-	this.background = "none";
+	this.background = null;
 
 	//set the canvas of this frame and if applicable, 
 		//add this frame to it's parent's children list
@@ -94,7 +94,7 @@ function canvas_frame(parent_frame, width, height, percent){
 	this.set_background = function(){
 		//get the dimensions of the displayable frame
 		var dim = that.convert_dimensions(that.coords.x, that.coords.y, that.width, that.height);
-		background = that.context.getImageData(dim.x, dim.y, dim.swidth, dim.sheight);
+		that.background = that.context.getImageData(dim.x, dim.y, dim.swidth, dim.sheight);
 	};
 	
 	/** Draws the object to the frame.
@@ -106,18 +106,18 @@ function canvas_frame(parent_frame, width, height, percent){
 		//if the object isn't anything don't do anything
 		if(typeof obj === "undefined") return;
 		//check the types of the coordinates, if not numbers, set to 0
-		if(typeof x_coord !== "number"){ x_coord = 0;}
-		if(typeof y_coord !== "number"){ y_coord = 0;}
+		if(typeof x !== "number"){ x = 0;}
+		if(typeof y !== "number"){ y = 0;}
 
 		//if the drawing object is an image
 			//draw the part that falls within the frame
 		if(obj instanceof HTMLImageElement){
-			that.draw_image(obj, coords.x, coords.y, "fill");
+			that.draw_image(obj, x, y, "fill");
 		}else if(obj instanceof ImageData){
-			
+			that.draw_image_data(obj, x, y);	
 		}else if(typeof obj === "string"){
 			if(/t(ext)?:.+/.test(obj)){ 
-				that.draw_text(obj.replace(/t(ext)?:/, ""), coords.x, coords.y); }
+				that.draw_text(obj.replace(/t(ext)?:/, ""), x, y); }
 			else{ that.fill_color(obj); }
 		}
 	}
@@ -131,18 +131,18 @@ function canvas_frame(parent_frame, width, height, percent){
 	**/
 	this.draw_image = function(image, x, y, mode){
 		//check the types of the coordsinates, if not numbers, set to 0
-		if(typeof x_coords !== "number"){ x_coords = 0;}
-		if(typeof y_coords !== "number"){ y_coords = 0;}
+		if(typeof x !== "number"){ x = 0;}
+		if(typeof y !== "number"){ y = 0;}
 			
 			//change the dimensions if needed
 			var dim = that.convert_dimensions(x, y, image.width, image.height);	
 			
 			if(/fill/.test(mode)){			
-				that.scratch_ctx.drawImage(image, 0, 0, that.width, that.height);
-				image = that.scratch_ctx.getImageData(0, 0, that.width, that.height);
-				that.context.putImageData(image, x, y);
+				that._scratch_ctx.drawImage(image, 0, 0, that.width, that.height);
+				image = that._scratch_ctx.getImageData(0, 0, that.width, that.height);
+				that.draw_image_data(image, x, y, dim.swidth, dim.sheight);
 			}else if(/flat/.test(mode)){
-				that.context.drawImage(image, sx, sy, swidth, sheight, x, y, swidth, sheight);	
+				that.context.drawImage(image, dim.sx, dim.sy, dim.swidth, dim.sheight, x, y, dim.swidth, dim.sheight);	
 			}
 	}
 
@@ -151,25 +151,19 @@ function canvas_frame(parent_frame, width, height, percent){
 	 * @param x the x coordinate within the current frame of the image to be drawn.
 	 * @param y the y coordinate within the current frame of the image to be drawn.
 	**/
-	this.draw_image_data = function(image_data, x, y){
+	this.draw_image_data = function(image_data, x, y, swidth, sheight){
 		//check the types of the coordsinates, if not numbers, set to 0
-		if(typeof x_coords !== "number"){ x_coords = 0;}
-		if(typeof y_coords !== "number"){ y_coords = 0;}
+		if(typeof x !== "number"){ x = 0;}
+		if(typeof y !== "number"){ y = 0;}
 		if( !(image_data instanceof ImageData) ){return;}
 	
 		//change the dimensions if needed
-		var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);
-
-		//if the dimensions have to be changed, then changed them	in image data.
-		if(dim.swidth != image_data.width || dim.sheight != image_data.height){
-			var temp_data = new ImageData(dim.swidth, dim.sheight);
-			var length = dim.swidth * dim.sheight * 4;
-			temp_data.data.set( image_data.data.subarray(0, length));
-		image_data = temp_data;
-		}
+		if(typeof swidth !== "number" || typeof sheight !== "number"){
+			var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);}
+		else{ var dim = {x:x, y:y, sx:0, sy:0, swidth:swidth, sheight:sheight}; }
 
 	//finally put the image data in.
-	that.context.putImageData(image_data, dim.x, dim.y)			
+	that.context.putImageData(image_data, dim.x, dim.y, 0, 0, dim.swidth, dim.sheight);			
 	}
 
 	/** Fills the frame with the given color 
@@ -216,6 +210,8 @@ function canvas_frame(parent_frame, width, height, percent){
 			//set up swidth and sheight
 			if(typeof swidth !== "number" || typeof sheight !== "number"){
 				swidth = width; sheight = height;}
+			//if the coord with the dimension together go beyond the frame
+				//set the dimension to be the distance between the coord and the frame's edge
 			if( (x + width) > that.width){ 
 				swidth = that.width - x;}
 			if( (y + height) > that.height){ 
@@ -226,9 +222,9 @@ function canvas_frame(parent_frame, width, height, percent){
 		y = y + that.coords.y;
 		
 		var parent_is_canvas = that.parent_frame instanceof HTMLCanvasElement;
-		var undrawable = swidth < 0 || sheight < 0 || sx > swidth || sy > sheight;
+		var drawable = swidth > 0 && sheight > 0 && sx < swidth && sy < sheight;
 	
-		if(!parent_is_canvas || !undrawable){
+		if(!parent_is_canvas && drawable){
 			return that.parent_frame.convert_dimensions(x, y, width, height, sx, sy, swidth, sheight);}	
 				
 	return {x:x, y:y, width:width, height:height, sx:sx, sy:sy, swidth:swidth, sheight:sheight};
