@@ -90,7 +90,7 @@ function canvas_frame(parent_frame, width, height, percent){
 		that.context.clearRect(dim.x, dim.y, dim.swidth, dim.sheight);
 	}
 
-	/** Sets the current image displayed as the background **/
+	/** Sets the current image displayed within the frame as the background **/
 	this.set_background = function(){
 		//get the dimensions of the displayable frame
 		var dim = that.convert_dimensions(that.coords.x, that.coords.y, that.width, that.height);
@@ -99,8 +99,8 @@ function canvas_frame(parent_frame, width, height, percent){
 	
 	/** Draws the object to the frame.
 	 * @param obj the object to be drawn. Can be image, color, image data or text.
-	 * @param x the x coordinate within the frame of the object. If not present assumed to be 0.
-	 * @param y the y coordinate within the frame of the object. If not present assumed to be 0.
+	 * @param x the x coordinate within the frame of the object. If not present assumed to be 0
+	 * @param y the y coordinate within the frame of the object. If not present assumed to be 0
 	**/
 	this.draw = function(obj, x, y){
 		//if the object isn't anything don't do anything
@@ -140,7 +140,7 @@ function canvas_frame(parent_frame, width, height, percent){
 			if(/fill/.test(mode)){			
 				that._scratch_ctx.drawImage(image, 0, 0, that.width, that.height);
 				image = that._scratch_ctx.getImageData(0, 0, that.width, that.height);
-				that.draw_image_data(image, x, y, dim.swidth, dim.sheight);
+				that.draw_image_data(image, x, y);
 			}else if(/flat/.test(mode)){
 				that.context.drawImage(image, dim.sx, dim.sy, dim.swidth, dim.sheight, x, y, dim.swidth, dim.sheight);	
 			}
@@ -151,16 +151,14 @@ function canvas_frame(parent_frame, width, height, percent){
 	 * @param x the x coordinate within the current frame of the image to be drawn.
 	 * @param y the y coordinate within the current frame of the image to be drawn.
 	**/
-	this.draw_image_data = function(image_data, x, y, swidth, sheight){
+	this.draw_image_data = function(image_data, x, y){
 		//check the types of the coordsinates, if not numbers, set to 0
 		if(typeof x !== "number"){ x = 0;}
 		if(typeof y !== "number"){ y = 0;}
 		if( !(image_data instanceof ImageData) ){return;}
 	
 		//change the dimensions if needed
-		if(typeof swidth !== "number" || typeof sheight !== "number"){
-			var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);}
-		else{ var dim = {x:x, y:y, sx:0, sy:0, swidth:swidth, sheight:sheight}; }
+		var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);}
 
 	//finally put the image data in.
 	that.context.putImageData(image_data, dim.x, dim.y, 0, 0, dim.swidth, dim.sheight);			
@@ -190,11 +188,9 @@ function canvas_frame(parent_frame, width, height, percent){
 		if(typeof font !== "undefined") {that.font_style.font = font;}
 		if(typeof color !== "undefined") {that.font_style.color = color;}
 
-		var coords = that.convert_coords(x,y);
-
-		that.context.font = that.font_style.font;
-		that.context.style= that.font_style.color;
-		that.context.fillText(text, coords.x, coords.y); 
+		that._scratch_ctx.font = that.font_style.font;
+		that._scratch_ctx.style= that.font_style.color;
+		that._scratch_ctx.fillText(text, coords.x, coords.y); 
 	}
 
 	/** Returns a set of dimensions with which an image will fit within all frames 
