@@ -158,7 +158,7 @@ function canvas_frame(parent_frame, width, height, percent){
 		if( !(image_data instanceof ImageData) ){return;}
 	
 		//change the dimensions if needed
-		var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);}
+		var dim = that.convert_dimensions(x, y, image_data.width, image_data.height);
 
 	//finally put the image data in.
 	that.context.putImageData(image_data, dim.x, dim.y, 0, 0, dim.swidth, dim.sheight);			
